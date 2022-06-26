@@ -1,15 +1,8 @@
-#!/usr/bin/env python
-# coding: utf-8
-
-# ## AzureTextAnalytics_Sentiments
-# 
-# 
-# 
-
-# In[1]:
-
-
-# Import Required libraries
+"""
+    @Author: Nishanth
+    @Last Modified by: Nishanth
+    @Last Modified Date: NA
+"""
 import sys
 from pyspark import SparkContext
 from pyspark.sql import SparkSession
@@ -18,32 +11,17 @@ import pandas as pd
 from azure.core.credentials import AzureKeyCredential
 from azure.ai.textanalytics import TextAnalyticsClient
 
-
-# In[3]:
 conf = SparkConf().setAppName("Sentiment")
 sc = SparkContext(conf=conf)
 spark = SparkSession(sc)
 
-df = spark.read.load('abfss://twitter-asa@cfpdlstorage.dfs.core.windows.net/output/tweets.csv', format='csv', header=True)
-
-
-# In[4]:
-
+df = spark.read.load(sys.argv[3], format='csv', header=True)
 
 tweet_list = df.select('Tweet').rdd.flatMap(lambda x: x).collect()
 
-
-# In[6]:
-
-
-# Connect Text Analytics Client to Azure Language Service
 endpoint = sys.argv[1]
 key = sys.argv[2]
 text_analytics_client = TextAnalyticsClient(endpoint=endpoint, credential=AzureKeyCredential(key))
-
-
-# In[10]:
-
 
 no_of_docs = len(tweet_list)
 no_of_batches = int(no_of_docs/10)
@@ -58,10 +36,6 @@ if excess != 0:
     excess_start = 10*no_of_batches
     tweet_batches.append(tweet_list[excess_start:])
 
-
-# In[12]:
-
-
 sentiments = []
 for tweet_batch in tweet_batches:
     result = text_analytics_client.analyze_sentiment(tweet_batch)
@@ -69,11 +43,6 @@ for tweet_batch in tweet_batches:
     for idx, doc in enumerate(docs):
         sentiments.append(doc.sentiment)
 
-
-# In[13]:
-
-
 predicted_sentiment_dict = {'Tweet': tweet_list, 'Sentiment': sentiments}
 pred_df = pd.DataFrame(predicted_sentiment_dict)
-pred_df.to_csv('abfss://twitter-asa@cfpdlstorage.dfs.core.windows.net/sentiments/tweet_sentiments.csv', index=False)
-
+pred_df.to_csv(sys.argv[4], index=False)
